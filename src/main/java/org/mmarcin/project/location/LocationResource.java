@@ -14,7 +14,7 @@ public class LocationResource {
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @Path("/terrain/{lat}/{lon}")
-    public String location(float lat, float lon) {
+    public String location(Double lat, Double lon) {
         return locationService.location(lat, lon);
     }
 }

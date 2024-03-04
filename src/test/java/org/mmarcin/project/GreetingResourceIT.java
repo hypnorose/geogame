@@ -1,4 +1,4 @@
-package org.acme.getting.started;
+package org.mmarcin.project;
 
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 

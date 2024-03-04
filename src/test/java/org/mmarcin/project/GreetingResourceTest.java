@@ -1,4 +1,4 @@
-package org.acme.getting.started;
+package org.mmarcin.project;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
