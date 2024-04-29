@@ -39,7 +39,7 @@ public class UnitResource {
     @Produces(MediaType.TEXT_PLAIN)
     public String addUnit(WarriorData warriorData) {
 
-        return unitService.createUnits(warriorData.name,
+        return unitService.createUnit(warriorData.name,
                 Double.parseDouble(warriorData.lat),
                 Double.parseDouble(warriorData.lon));
 

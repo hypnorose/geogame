@@ -1,5 +1,9 @@
 package org.mmarcin.project.game.units;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -60,10 +64,14 @@ public class UnitService {
                 String name = object.getProperty(VCARD.FN).getString();
                 Property atLat = model.createProperty("atLat");
                 Property atLon = model.createProperty("atLong");
+                Property expires = model.createProperty("expires");
+
                 Double valueLat = object.getProperty(atLat).getDouble();
                 Double valueLong = object.getProperty(atLon).getDouble();
+                String expireDate = object.getProperty(expires).toString();
                 childNode.put("lat", valueLat.toString());
                 childNode.put("long", valueLong.toString());
+                childNode.put("expires", expireDate.toString());
                 rootNode.set(name, childNode);
             }
         } catch (Exception e) {
@@ -80,11 +88,11 @@ public class UnitService {
 
     }
 
-    public String createUnits(String name, double lat, double lon) {
+    public String createUnit(String name, double lat, double lon) {
         LOG.info(name);
         datasetManager.startWrite();
         Model model = datasetManager.getModel();
-        String prefix = "http://units/origin/";
+        String prefix = "http://units/instance/";
         String originURI = prefix + name;
         String warriorName = name;
 
@@ -92,8 +100,13 @@ public class UnitService {
         unit.addProperty(VCARD.FN, warriorName);
         Property locationLat = model.createProperty("atLat");
         Property locationLong = model.createProperty("atLong");
+        Property expires = model.createProperty("expires");
+        LocalDateTime expireLocalDateTime = LocalDateTime.now().plusMinutes(5);
+
         unit.addLiteral(locationLat, ResourceFactory.createTypedLiteral(lat));
         unit.addLiteral(locationLong, ResourceFactory.createTypedLiteral(lon));
+        unit.addLiteral(expires, ResourceFactory.createTypedLiteral(expireLocalDateTime.toString()));
+
         datasetManager.commit();
         datasetManager.end();
         return "ok";
@@ -118,7 +131,7 @@ public class UnitService {
                 double lat = s.getSubject().getProperty(locationLat).getDouble();
                 double lon = s.getSubject().getProperty(locationLong).getDouble();
                 return lat > minLat && lat < maxLat && lon > minLong && lon < maxLong &&
-                        s.getSubject().toString().startsWith("http://units/origin/");
+                        s.getSubject().toString().startsWith("http://units/instance/");
             }
         });
         Set<String> origins = new HashSet<String>();
@@ -131,7 +144,32 @@ public class UnitService {
 
     public Boolean generateUnits(double latitude, double longitude, int count) {
 
+        getUnitsAround(latitude, longitude).size();
+
         return true;
+    }
+
+    public void removeExpiredUnits() {
+        datasetManager.startRead();
+        Model model = datasetManager.getModel();
+
+        StmtIterator iter = model.listStatements(new SimpleSelector(null, null, (RDFNode) null) {
+            public boolean selects(Statement s) {
+
+                Property expires = model.createProperty("expires");
+                Boolean expired = LocalDateTime.parse(s.getSubject().getProperty(expires).toString())
+                        .isAfter(LocalDateTime.now());
+
+                return s.getSubject().toString().startsWith("http://units/instance/") && !expired;
+            }
+        });
+        datasetManager.end();
+        datasetManager.startWrite();
+        while (iter.hasNext()) {
+            model.remove(iter.next());
+        }
+        datasetManager.commit();
+        datasetManager.end();
     }
 
     public String deleteAll() {
