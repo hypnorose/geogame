@@ -117,10 +117,10 @@ public class UnitService {
         final int UNITS_AROUND_PLAYER = 3;
         double minLat, maxLat, minLong, maxLong;
         double delta = 0.004;
-        minLat = 53.54107409151398 - delta;
-        maxLat = 53.54107409151398 + delta;
-        minLong = 19.395292892120136 - delta * 2;
-        maxLong = 19.395292892120136 + delta * 2;
+        minLat = latitude - delta;
+        maxLat = latitude + delta;
+        minLong = longitude - delta * 2;
+        maxLong = longitude + delta * 2;
 
         Model model = datasetManager.getModel();
         Property locationLat = model.createProperty("atLat");

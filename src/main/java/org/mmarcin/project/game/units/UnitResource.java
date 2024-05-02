@@ -3,6 +3,8 @@ package org.mmarcin.project.game.units;
 import java.util.Collection;
 import java.util.Map;
 
+import javax.print.attribute.standard.Media;
+
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestForm;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -31,7 +33,8 @@ public class UnitResource {
     @ServerExceptionMapper
     public RestResponse<String> mapException(RuntimeException e) {
         LOG.debug(("dupa"));
-        return RestResponse.status(Response.Status.NOT_FOUND, e.toString());
+        e.printStackTrace();
+        return RestResponse.status(Response.Status.NOT_FOUND, e.getMessage() + e.getLocalizedMessage());
     }
 
     @POST
@@ -48,8 +51,17 @@ public class UnitResource {
     @GET
     @Path("/at/{lat}/{lon}")
     @Produces(MediaType.TEXT_PLAIN)
+
     public String getUnits(Double lat, Double lon) {
         return unitService.getUnits(lat, lon);
+    }
+
+    @GET
+    @Path("/check/{lat}/{lon}")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String checkUnitCountAround(Double lat, Double lan) {
+        LOG.debug("asd");
+        return "OK";
     }
 
     @DELETE
