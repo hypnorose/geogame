@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryException;
@@ -30,6 +31,7 @@ import org.mmarcin.project.location.AreaCalculator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonAppend.Prop;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.quarkus.logging.Log;
@@ -39,44 +41,38 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class UnitService {
     private static final Logger LOG = Logger.getLogger(UnitService.class);
-
+    private static final int MAX_UNITS_AROUND_PLAYER = 4;
     @Inject
     DatasetManager datasetManager;
+    @Inject
+    UnitGenerator unitGenerator;
 
     public String getUnits(double latitude, double longitude) {
         String output = "";
-        LOG.info(output);
-
         ObjectMapper mapper = new ObjectMapper();
-
-        ObjectNode rootNode = mapper.createObjectNode();
+        ArrayNode rootNode = mapper.createArrayNode();
         Set<String> unitsAround = getUnitsAround(latitude, longitude);
-        datasetManager.startRead();
-        Model model = datasetManager.getModel();
-
+        Log.info(unitsAround);
         try {
 
             for (String unit : unitsAround) {
 
                 ObjectNode childNode = mapper.createObjectNode();
-
-                Resource object = model.getResource(unit);
-                String name = object.getProperty(VCARD.FN).getString();
-                Property atLat = model.createProperty("atLat");
-                Property atLon = model.createProperty("atLong");
-                Property expires = model.createProperty("expires");
-
-                Double valueLat = object.getProperty(atLat).getDouble();
-                Double valueLong = object.getProperty(atLon).getDouble();
-                String expireDate = object.getProperty(expires).toString();
+                Log.info(unit);
+                Resource object = datasetManager.getResource(unit);
+                String name = datasetManager.getStatement(object, "FN").getString();
+                Double valueLat = datasetManager.getStatement(object, "atLat").getDouble();
+                Double valueLong = datasetManager.getStatement(object, "atLong").getDouble();
+                String expireDate = datasetManager.getStatement(object, "expires").getObject().toString();
                 childNode.put("lat", valueLat.toString());
                 childNode.put("long", valueLong.toString());
                 childNode.put("expires", expireDate.toString());
-                rootNode.set(name, childNode);
+                childNode.put("name", name);
+                rootNode.add(childNode);
             }
         } catch (Exception e) {
+            e.printStackTrace();
         } finally {
-            datasetManager.end();
         }
         try {
             output = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rootNode);
@@ -89,87 +85,62 @@ public class UnitService {
     }
 
     public String createUnit(String name, double lat, double lon) {
-        LOG.info(name);
-        datasetManager.startWrite();
-        Model model = datasetManager.getModel();
-        String prefix = "http://units/instance/";
-        String originURI = prefix + name;
+        LOG.info("unit created " + name + " " + lat + " " + lon);
+        String prefix = "units/instance/";
+        String originURI = prefix + name + UUID.randomUUID();
         String warriorName = name;
+        datasetManager.createProperty(originURI, "FN", warriorName);
 
-        Resource unit = model.createResource(originURI);
-        unit.addProperty(VCARD.FN, warriorName);
-        Property locationLat = model.createProperty("atLat");
-        Property locationLong = model.createProperty("atLong");
-        Property expires = model.createProperty("expires");
+        datasetManager.createLiteral(originURI, "atLat", lat);
+        datasetManager.createLiteral(originURI, "atLong", lon);
+
         LocalDateTime expireLocalDateTime = LocalDateTime.now().plusMinutes(5);
-
-        unit.addLiteral(locationLat, ResourceFactory.createTypedLiteral(lat));
-        unit.addLiteral(locationLong, ResourceFactory.createTypedLiteral(lon));
-        unit.addLiteral(expires, ResourceFactory.createTypedLiteral(expireLocalDateTime.toString()));
-
-        datasetManager.commit();
-        datasetManager.end();
+        datasetManager.createLiteral(originURI, "expires", expireLocalDateTime.toString());
         return "ok";
     }
 
     public Set<String> getUnitsAround(double latitude, double longitude) {
-        datasetManager.startRead();
         final int UNITS_AROUND_PLAYER = 3;
         double minLat, maxLat, minLong, maxLong;
-        double delta = 0.004;
+        double delta = 0.001;
         minLat = latitude - delta;
         maxLat = latitude + delta;
         minLong = longitude - delta * 2;
         maxLong = longitude + delta * 2;
 
-        Model model = datasetManager.getModel();
-        Property locationLat = model.createProperty("atLat");
-        Property locationLong = model.createProperty("atLong");
-        StmtIterator iter = model.listStatements(new SimpleSelector(null, VCARD.FN, (RDFNode) null) {
-            public boolean selects(Statement s) {
-
-                double lat = s.getSubject().getProperty(locationLat).getDouble();
-                double lon = s.getSubject().getProperty(locationLong).getDouble();
-                return lat > minLat && lat < maxLat && lon > minLong && lon < maxLong &&
-                        s.getSubject().toString().startsWith("http://units/instance/");
-            }
-        });
-        Set<String> origins = new HashSet<String>();
-        while (iter.hasNext()) {
-            origins.add(iter.nextStatement().getSubject().toString());
-        }
-        datasetManager.end();
+        Set<String> origins = datasetManager
+                .getSubjectsBySelector(new SimpleSelector(null, datasetManager.getProperty("FN"), (RDFNode) null) {
+                    public boolean selects(Statement s) {
+                        double lat = s.getSubject().getProperty(datasetManager.getProperty("atLat")).getDouble();
+                        double lon = s.getSubject().getProperty(datasetManager.getProperty("atLong")).getDouble();
+                        return lat > minLat && lat < maxLat && lon > minLong && lon < maxLong &&
+                                s.getSubject().toString().startsWith("units/instance/");
+                    }
+                });
         return origins;
     }
 
-    public Boolean generateUnits(double latitude, double longitude, int count) {
+    public Boolean generateUnits(double latitude, double longitude) {
 
-        getUnitsAround(latitude, longitude).size();
-
+        unitGenerator.generateAroundToMax(latitude, longitude, MAX_UNITS_AROUND_PLAYER);
         return true;
     }
 
     public void removeExpiredUnits() {
-        datasetManager.startRead();
-        Model model = datasetManager.getModel();
 
-        StmtIterator iter = model.listStatements(new SimpleSelector(null, null, (RDFNode) null) {
+        datasetManager.deleteBySelector(new SimpleSelector(null, null, (RDFNode) null) {
             public boolean selects(Statement s) {
 
-                Property expires = model.createProperty("expires");
+                Property expires = datasetManager.getProperty("expires");
                 Boolean expired = LocalDateTime.parse(s.getSubject().getProperty(expires).toString())
                         .isAfter(LocalDateTime.now());
 
-                return s.getSubject().toString().startsWith("http://units/instance/") && !expired;
+                return s.getSubject().toString().startsWith("units/instance/") && !expired;
             }
-        });
-        datasetManager.end();
-        datasetManager.startWrite();
-        while (iter.hasNext()) {
-            model.remove(iter.next());
         }
-        datasetManager.commit();
-        datasetManager.end();
+            
+        );
+
     }
 
     public String deleteAll() {

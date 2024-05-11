@@ -14,6 +14,7 @@ import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 import org.mmarcin.project.game.units.dto.WarriorData;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -58,10 +59,10 @@ public class UnitResource {
 
     @GET
     @Path("/check/{lat}/{lon}")
-    @Produces(MediaType.TEXT_PLAIN)
-    public String checkUnitCountAround(Double lat, Double lan) {
-        LOG.debug("asd");
-        return "OK";
+    @Produces(MediaType.APPLICATION_JSON)
+    public String checkUnitCountAround(Double lat, Double lon) {
+        unitService.generateUnits(lat, lon);
+        return unitService.getUnits(lat, lon).toString();
     }
 
     @DELETE

@@ -17,4 +17,13 @@ public class LocationResource {
     public String location(Double lat, Double lon) {
         return locationService.location(lat, lon);
     }
+    @Path("/terrain2/{lat}/{lon}")
+    public String location2(Double lat, Double lon) {
+        return TerrainTypeChecker.getTerrainType(lat, lon);
+    }
+    @GET
+    @Path("/terrain/cache")
+    public String cache() {
+        return TerrainTypeChecker.getCache();
+    }
 }
