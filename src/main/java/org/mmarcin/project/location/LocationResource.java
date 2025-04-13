@@ -10,20 +10,28 @@ import jakarta.ws.rs.core.MediaType;
 public class LocationResource {
     @Inject
     LocationService locationService;
-
+    @Inject
+    TerrainTypeChecker terrainTypeChecker;
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @Path("/terrain/{lat}/{lon}")
     public String location(Double lat, Double lon) {
         return locationService.location(lat, lon);
     }
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
     @Path("/terrain2/{lat}/{lon}")
     public String location2(Double lat, Double lon) {
-        return TerrainTypeChecker.getTerrainType(lat, lon);
+        return terrainTypeChecker.getInfo(lat, lon);
+    }
+    @GET
+    @Path("/terrain/gencache")
+    public String gencache() {
+        return terrainTypeChecker.generateCache();
     }
     @GET
     @Path("/terrain/cache")
     public String cache() {
-        return TerrainTypeChecker.getCache();
+        return terrainTypeChecker.getCache();
     }
 }
